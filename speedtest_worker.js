@@ -134,18 +134,8 @@ this.addEventListener("message", function(e) {
 						settings.ping_allowPerformanceApi = false;
 					}
 				}
-				if (/Edge.(\d+\.\d+)/i.test(ua)) {
-					if (typeof s.xhr_dlMultistream === "undefined") {
-						// edge more precise with 3 download streams
-						settings.xhr_dlMultistream = 3;
-					}
-				}
-				if (/Chrome.(\d+)/i.test(ua) && !!self.fetch) {
-					if (typeof s.xhr_dlMultistream === "undefined") {
-						// chrome more precise with 5 streams
-						settings.xhr_dlMultistream = 5;
-					}
-				}
+				// NOTE: the Edge/Chrome xhr_dlMultistream overrides have been removed on purpose:
+				// with a static CDN-cached file, all browsers use xhr_dlMultistream (6) for maximum download parallelism.
 			}
 			if (/Edge.(\d+\.\d+)/i.test(ua)) {
 				//Edge 15 introduced a bug that causes onprogress events to not get fired, we have to use the "small chunks" workaround that reduces accuracy
@@ -393,6 +383,10 @@ function dlTest(done) {
 					xhr[i].open("GET", settings.url_dl, true);
 					try {
 						xhr[i].setRequestHeader("Range", "bytes=" + offset + "-" + end);
+					} catch (e) {}
+					try {
+						// prevent the browser from serving ranges from its local cache, so every byte is fetched over the network from the CDN edge cache
+						xhr[i].setRequestHeader("Cache-Control", "no-store");
 					} catch (e) {}
 					xhr[i].send();
 				};
