@@ -45,7 +45,7 @@ var settings = {
 	time_ulGraceTime: 3, //time to wait in seconds before actually measuring ul speed (wait for buffers to fill)
 	time_dlGraceTime: 1.5, //time to wait in seconds before actually measuring dl speed (wait for TCP window to increase)
 	count_ping: 10, // number of pings to perform in ping test
-	url_dl: "backend/garbage.php", // path to a large file or garbage.php, used for download test. must be relative to this js file
+	url_dl: "assets/garbage.bin", // path to a large static file, used for download test. must be relative to this js file
 	url_ul: "backend/empty.php", // path to an empty file, used for upload test. must be relative to this js file
 	url_ping: "backend/empty.php", // path to an empty file, used for ping test. must be relative to this js file
 	url_getIp: "backend/getIP.php", // path to getIP.php relative to this js file, or a similar thing that outputs the client's ip
@@ -58,6 +58,8 @@ var settings = {
 	xhr_dlUseBlob: false, // if set to true, it reduces ram usage but uses the hard drive (useful with large garbagePhp_chunkSize and/or high xhr_dlMultistream)
 	xhr_ul_blob_megabytes: 20, //size in megabytes of the upload blobs sent in the upload test (forced to 4 on chrome mobile)
 	garbagePhp_chunkSize: 100, // size of chunks sent by garbage.php (can be different if enable_quirks is active)
+	dl_file_size_mb: 20, // total size in MiB of the static download file (assets/garbage.bin). must match the actual file
+	dl_range_mb: 8, // size in MiB of each HTTP Range request used by every download stream
 	enable_quirks: true, // enable quirks for specific browsers. currently it overrides settings to optimize for specific browsers, unless they are already being overridden with the start command
 	ping_allowPerformanceApi: true, // if enabled, the ping test will attempt to calculate the ping more precisely using the Performance API. Currently works perfectly in Chrome, badly in Edge, and not at all in Firefox. If Performance API is not supported or the result is obviously wrong, a fallback is provided.
 	overheadCompensationFactor: 1.06, //can be changed to compensate for transport overhead. (see doc.md for some other values)
@@ -327,54 +329,74 @@ function dlTest(done) {
 		bonusT = 0, //how many milliseconds the test has been shortened by (higher on faster connections)
 		graceTimeDone = false, //set to true after the grace time is past
 		failed = false; // set to true if a stream fails
+	// total size of the static download file and size of each Range request
+	var FILE_SIZE = settings.dl_file_size_mb * 1024 * 1024;
+	var RANGE = settings.dl_range_mb * 1024 * 1024;
 	xhr = [];
-	// function to create a download stream. streams are slightly delayed so that they will not end at the same time
+	// function to create a download stream. streams are slightly delayed so that they will not end at the same time.
+	// each stream downloads sequential RANGE-sized chunks of the static file via HTTP Range requests, looping over the file.
+	// the URL stays constant (no cache-busting query string) so that every request is served from the CDN cache.
 	var testStream = function(i, delay) {
 		setTimeout(
 			function() {
 				if (testState !== 1) return; // delayed stream ended up starting after the end of the download test
-				tverb("dl test stream started " + i + " " + delay);
-				var prevLoaded = 0; // number of bytes loaded last time onprogress was called
-				var x = new XMLHttpRequest();
-				xhr[i] = x;
-				xhr[i].onprogress = function(event) {
-					tverb("dl stream progress event " + i + " " + event.loaded);
-					if (testState !== 1) {
+				var offset = (i * RANGE) % FILE_SIZE; // starting byte offset for this stream
+				var next = function() {
+					if (testState !== 1) return;
+					tverb("dl test stream range " + i + " " + offset);
+					var end = Math.min(offset + RANGE - 1, FILE_SIZE - 1);
+					var prevLoaded = 0; // number of bytes loaded last time onprogress was called (per request, reset for every range)
+					var x = new XMLHttpRequest();
+					xhr[i] = x;
+					xhr[i].onprogress = function(event) {
+						tverb("dl stream progress event " + i + " " + event.loaded);
+						if (testState !== 1) {
+							try {
+								x.abort();
+							} catch (e) {}
+						} // just in case this XHR is still running after the download test
+						// progress event, add number of new loaded bytes to totLoaded
+						var loadDiff = event.loaded <= 0 ? 0 : event.loaded - prevLoaded;
+						if (isNaN(loadDiff) || !isFinite(loadDiff) || loadDiff < 0) return; // just in case
+						totLoaded += loadDiff;
+						prevLoaded = event.loaded;
+					}.bind(this);
+					xhr[i].onload = function() {
+						// this range has been loaded, request the next one
+						tverb("dl stream range finished " + i);
 						try {
-							x.abort();
+							xhr[i].abort();
+						} catch (e) {} // reset the stream data to empty ram
+						offset = (offset + RANGE) % FILE_SIZE; // move to the next range, looping over the file
+						next();
+					}.bind(this);
+					xhr[i].onerror = function() {
+						// error
+						tverb("dl stream failed " + i);
+						if (settings.xhr_ignoreErrors === 0) failed = true; //abort
+						try {
+							xhr[i].abort();
 						} catch (e) {}
-					} // just in case this XHR is still running after the download test
-					// progress event, add number of new loaded bytes to totLoaded
-					var loadDiff = event.loaded <= 0 ? 0 : event.loaded - prevLoaded;
-					if (isNaN(loadDiff) || !isFinite(loadDiff) || loadDiff < 0) return; // just in case
-					totLoaded += loadDiff;
-					prevLoaded = event.loaded;
-				}.bind(this);
-				xhr[i].onload = function() {
-					// the large file has been loaded entirely, start again
-					tverb("dl stream finished " + i);
+						delete xhr[i];
+						if (settings.xhr_ignoreErrors === 1) {
+							offset = (offset + RANGE) % FILE_SIZE;
+							next(); //restart stream on the next range
+						}
+					}.bind(this);
+					// send xhr
 					try {
-						xhr[i].abort();
-					} catch (e) {} // reset the stream data to empty ram
-					testStream(i, 0);
-				}.bind(this);
-				xhr[i].onerror = function() {
-					// error
-					tverb("dl stream failed " + i);
-					if (settings.xhr_ignoreErrors === 0) failed = true; //abort
-					try {
-						xhr[i].abort();
+						if (settings.xhr_dlUseBlob) xhr[i].responseType = "blob";
+						else xhr[i].responseType = "arraybuffer";
 					} catch (e) {}
-					delete xhr[i];
-					if (settings.xhr_ignoreErrors === 1) testStream(i, 0); //restart stream
-				}.bind(this);
-				// send xhr
-				try {
-					if (settings.xhr_dlUseBlob) xhr[i].responseType = "blob";
-					else xhr[i].responseType = "arraybuffer";
-				} catch (e) {}
-				xhr[i].open("GET", settings.url_dl + url_sep(settings.url_dl) + (settings.mpot ? "cors=true&" : "") + "r=" + Math.random() + "&ckSize=" + settings.garbagePhp_chunkSize, true); // random string to prevent caching
-				xhr[i].send();
+					// NOTE: the URL must stay constant so that the CDN cache can serve it.
+					// no random cache-busting query string is appended here.
+					xhr[i].open("GET", settings.url_dl, true);
+					try {
+						xhr[i].setRequestHeader("Range", "bytes=" + offset + "-" + end);
+					} catch (e) {}
+					xhr[i].send();
+				};
+				next();
 			}.bind(this),
 			1 + delay
 		);
