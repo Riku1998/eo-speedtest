@@ -3,43 +3,25 @@
     {
       "source": "/assets/*",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
       "source": "/garbage.bin",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
       "source": "/empty.txt",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
+        { "key": "Cache-Control", "value": "no-cache" }
       ]
     }
   ],
   "caches": [
-    {
-      "source": "/assets/*",
-      "cacheTtl": 31536000
-    },
-    {
-      "source": "/garbage.bin",
-      "cacheTtl": 31536000
-    },
-    {
-      "source": "/empty.txt",
-      "cacheTtl": 31536000
-    }
+    { "source": "/assets/*", "cacheTtl": 31536000 },
+    { "source": "/garbage.bin", "cacheTtl": 31536000 },
+    { "source": "/empty.txt", "cacheTtl": 31536000 }
   ]
 }
