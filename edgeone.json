@@ -17,10 +17,23 @@
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }
       ]
+    },
+    {
+      "source": "/backend/empty.php",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache" },
+        { "key": "Content-Length", "value": "0" }
+      ]
     }
   ],
   "caches": [
     { "source": "/assets/*", "cacheTtl": 31536000 },
     { "source": "/garbage.bin", "cacheTtl": 31536000 }
+  ],
+  "routes": [
+    {
+      "source": "/backend/empty.php",
+      "function": "optimized-404"
+    }
   ]
 }
