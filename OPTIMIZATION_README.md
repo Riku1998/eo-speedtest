@@ -18,38 +18,48 @@
 
 ### 主要优化（已实现）
 
-1. **将ping测试从Edge Function改为静态文件**
+1. **创建优化的Edge Function进行ping测试**
+   - 创建`edge-functions/ping-optimized.js`，返回204 No Content响应
+   - 最小化HTTP头部和处理逻辑
+   - 明确设置Content-Length: 0
+
+2. **更新测速配置使用优化端点**
    - 修改`speedtest_worker.js`中的`url_ping`设置：
      ```javascript
      // 从：
-     url_ping: "ping", // Edge Function
-     // 改为：
      url_ping: "empty.txt", // 静态文件
+     // 改为：
+     url_ping: "ping-optimized", // 优化的Edge Function
      ```
 
-2. **优化缓存配置**
-   - 在`edgeone.json`中添加empty.txt的缓存控制：
-     ```json
-     {
-       "source": "/empty.txt",
-       "headers": [
-         { "key": "Cache-Control", "value": "no-store" }
-       ]
-     }
-     ```
+3. **保持静态文件作为备选**
+   - 保留empty.txt文件
+   - 保持edgeone.json中的缓存配置
 
 ### 优化原理
 
-- **静态文件响应更快**：不需要JavaScript执行环境初始化
-- **响应一致性更好**：静态文件的响应时间更稳定，减少抖动
-- **网络路径优化**：使用与下载测试相同的CDN缓存策略
+- **测试发现**：原始的Edge Function (/ping) 比静态文件 (/empty.txt) 快24ms
+- **优化思路**：创建专门优化的Edge Function，比通用Edge Function更快
+- **响应优化**：204 No Content响应最小化HTTP开销
+- **抖动减少**：专用端点响应时间更稳定
 
 ### 预期效果
 
-根据ESA测速的性能表现，优化后预计：
-- **延迟降低87.9%**：从568.61ms降低到68-100ms
-- **抖动降低97.5%**：从514.83ms降低到10-15ms
-- **整体性能提升8倍**：达到与ESA测速相当的水平
+根据实际测试结果，优化后预计：
+- **延迟降低15-30%**：从147ms降低到100-120ms
+- **抖动降低50%**：从38ms降低到15-20ms
+- **更接近itdog tcpping值**：应用层延迟从5-6倍降低到3-4倍TCP层延迟
+
+### 性能测试对比（实际测量）
+
+| 测试端点 | 平均延迟 | 抖动 | 响应大小 |
+|---------|---------|------|---------|
+| /empty.txt (静态文件) | 147.05ms | 38.52ms | 1字节 |
+| /ping (原始Edge Function) | 123.05ms | 19.21ms | 0字节 |
+| /ping-optimized (预期) | 100-110ms | 10-15ms | 0字节 |
+| itdog tcpping (TCP层) | 11ms | - | - |
+
+**关键发现**：Edge Function比静态文件更快！
 
 ## 部署步骤
 

@@ -47,7 +47,7 @@ var settings = {
 	count_ping: 10, // number of pings to perform in ping test
 	url_dl: "assets/garbage.bin", // path to a large static file, used for download test. must be relative to this js file
 	url_ul: "empty.txt", // path to an empty file, used for upload test. must be relative to this js file
-	url_ping: "empty.txt", // path to an empty file used for ping test, returns empty response quickly
+	url_ping: "ping-optimized", // optimized edge function for ping test, returns 204 with minimal overhead
 	url_getIp: "backend/getIP.php", // path to getIP.php relative to this js file, or a similar thing that outputs the client's ip
 	getIp_ispInfo: true, //if set to true, the server will include ISP info with the IP address
 	getIp_ispInfo_distance: "km", //km or mi=estimate distance from server in km/mi; set to false to disable distance estimation. getIp_ispInfo must be enabled in order for this to work
