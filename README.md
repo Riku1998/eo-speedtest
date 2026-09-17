@@ -10,35 +10,25 @@
 edgeone pages deploy -n speedtest
 ```
 
-## 下载测速原理
+## 测速原理
 
-原 LibreSpeed 依赖后端动态接口生成数据流，而纯静态的 EdgeOne Pages 没有这些接口，导致下载速度严重偏低。
+### 下载测试
+- **文件**：`assets/garbage.bin`（24 MiB 随机数据）
+- **原理**：多线程 Range 请求，命中 CDN 缓存
+- **配置**：`edgeone.json` 为 `/assets/*` 配置长期缓存
 
-本 fork 改为**纯静态 + CDN 缓存下载**：
+### 上传测试
+- **文件**：`empty.txt`（1 字节空文件）
+- **原理**：POST 请求上传小文件，测量上行速度
+- **配置**：随机参数防止缓存
 
-- `assets/garbage.bin`：24 MiB 随机不可压缩数据
-- 下载测试对恒定 URL 发起多线程 Range 请求，命中 EdgeOne 边缘缓存
-- `edgeone.json` 为 `/assets/*` 配置长期缓存
-- 上传/延迟/抖动沿用 LibreSpeed 逻辑
+### 延迟测试
+- **端点**：`backend/empty.php`（不存在的文件）
+- **原理**：CDN 返回 404 响应，跳过动态处理
+- **配置**：路由到优化的 404 函数，返回最小化响应
 
-如需调整下载参数：修改 `speedtest_worker.js` 中的 `dl_file_size_mb` 和 `dl_range_mb`。
-
-## 延迟优化
-
-### 当前配置
-
-- **Ping端点**：`backend/empty.php`（返回最小化 404 响应）
-- **下载文件**：`assets/garbage.bin`（24MB 测速文件）
-- **上传端点**：`empty.txt`（1 字节静态文件）
-- **优化效果**：延迟从 568ms 优化到 80ms
-
-### 性能对比
-
-| 指标 | EO测速（优化前） | ESA测速 | EO测速（优化后） |
-|------|----------------|---------|----------------|
-| 平均延迟 | 568.61 ms | 68.58 ms | ~80 ms |
-| 抖动 | 514.83 ms | 12.86 ms | ~20 ms |
-| 性能倍数 | 8.29x slower | 1x | ~1.2x |
+### 延迟优化
+通过使用 ESA 模式（不存在的文件返回 404），延迟从 568ms 优化到 80ms。
 
 ## 新增功能：独立Ping测试
 
@@ -89,17 +79,25 @@ const tester = new PingTester({
 eo-speedtest/
 ├── index.html              # 主页面
 ├── speedtest.js           # LibreSpeed主脚本
-├── speedtest_worker.js    # 测速工作脚本
+├── speedtest_worker.js    # 测速工作脚本（已优化）
 ├── ping-tester.js         # 独立延迟测试库
 ├── simple-ping-test.html  # Ping测试演示
 ├── edgeone.json           # EdgeOne配置
 ├── assets/
-│   ├── garbage.bin        # 24MB测速文件
+│   ├── garbage.bin        # 24MB测速文件（下载测试）
 │   └── screenshot.png    # 示例截图
 ├── edge-functions/
-│   └── optimized-404.js  # 优化的404响应
-└── empty.txt             # 上传测试文件
+│   └── optimized-404.js  # 优化的404响应（ping测试）
+└── empty.txt             # 1字节文件（上传测试）
 ```
+
+## 配置说明
+
+| 测试类型 | 使用文件/端点 | 原理 |
+|---------|-------------|------|
+| 下载测试 | `assets/garbage.bin` | 大文件多线程下载，CDN缓存 |
+| 上传测试 | `empty.txt` | 小文件上传，测量上行速度 |
+| 延迟测试 | `backend/empty.php` | 不存在的文件，返回优化404 |
 
 ## 许可证
 
