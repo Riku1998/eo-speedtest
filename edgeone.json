@@ -7,7 +7,7 @@
       ]
     },
     {
-      "source": "/garbage.bin",
+      "source": "/assets/garbage.bin",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
@@ -28,7 +28,7 @@
   ],
   "caches": [
     { "source": "/assets/*", "cacheTtl": 31536000 },
-    { "source": "/garbage.bin", "cacheTtl": 31536000 }
+    { "source": "/assets/garbage.bin", "cacheTtl": 31536000 }
   ],
   "routes": [
     {
