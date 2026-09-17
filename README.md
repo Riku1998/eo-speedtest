@@ -65,6 +65,65 @@ edgeone pages deploy -n speedtest
 | 抖动 | 514.83 ms | 12.86 ms | ~20 ms |
 | 性能倍数 | 8.29x slower | 1x | ~1.2x |
 
+## 新增功能：独立的Ping测试库
+
+### Ping Tester
+
+添加了独立的延迟测试库，可直接测试用户浏览器到 EdgeOne 节点的 HTTP 延迟。
+
+#### 文件
+
+1. **`ping-tester.js`** - 独立的延迟测试库
+2. **`ping-demo.html`** - 完整的演示页面
+3. **`simple-ping-test.html`** - 最小示例
+
+#### 使用方法
+
+```html
+<script src="ping-tester.js"></script>
+<script>
+  const tester = new PingTester({
+    url: 'https://speedtest-eo.riku1998.cn/backend/empty.php',
+    pingCount: 10
+  });
+  
+  const results = await tester.test();
+  console.log('延迟:', results.averageLatency + 'ms');
+  console.log('抖动:', results.averageJitter + 'ms');
+</script>
+```
+
+#### 特性
+
+- **真实测量**：从用户浏览器直接测试 HTTP 延迟
+- **独立运行**：无需修改现有测速代码
+- **精度优化**：使用 Performance API 提高测量精度
+- **轻量级**：文件大小仅 ~5KB
+
+#### API
+
+```javascript
+// 快速测试
+import { testEdgeOneLatency } from './ping-tester.js';
+const results = await testEdgeOneLatency();
+
+// 自定义配置
+const tester = new PingTester({
+  url: 'your-endpoint-url',
+  pingCount: 5,
+  timeout: 5000,
+  usePerformanceApi: true
+});
+
+const results = await tester.test();
+const formatted = tester.getFormattedResults();
+```
+
+#### 演示
+
+- **完整演示**：[ping-demo.html](ping-demo.html) - 包含图表和详细结果
+- **最小示例**：[simple-ping-test.html](simple-ping-test.html) - 基础使用
+
 ## 许可证
 
 基于 [LibreSpeed](https://github.com/librespeed/speedtest)，遵循其开源许可证。

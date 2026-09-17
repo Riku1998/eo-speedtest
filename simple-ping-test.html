@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EdgeOne简单延迟测试</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        #result.show {
+            display: block;
+        }
+        
+        .metric {
+            margin: 5px 0;
+        }
+        
+        .code {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>EdgeOne延迟测试（最小示例）</h1>
+    
+    <button id="testBtn">测试延迟</button>
+    
+    <div id="result">
+        <h3>测试结果</h3>
+        <div class="metric"><strong>平均延迟：</strong><span id="latency">--</span> ms</div>
+        <div class="metric"><strong>抖动：</strong><span id="jitter">--</span> ms</div>
+        <div class="metric"><strong>延迟范围：</strong><span id="range">--</span> ms</div>
+        <div class="metric"><strong>测试次数：</strong><span id="count">--</span></div>
+    </div>
+    
+    <h3>使用方法</h3>
+    <div class="code">
+// 使用PingTester库
+const tester = new PingTester({
+  url: 'https://speedtest-eo.riku1998.cn/backend/empty.php',
+  pingCount: 10
+});
+
+const results = await tester.test();
+console.log('延迟:', results.averageLatency + 'ms');
+console.log('抖动:', results.averageJitter + 'ms');
+    </div>
+    
+    <p><a href="ping-demo.html">查看完整演示页面</a></p>
+
+    <script src="ping-tester.js"></script>
+    <script>
+        document.getElementById('testBtn').addEventListener('click', async function() {
+            const btn = this;
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = '测试中...';
+            resultDiv.classList.remove('show');
+            
+            try {
+                const tester = new PingTester({
+                    pingCount: 5, // 减少测试次数，更快
+                    timeout: 3000
+                });
+                
+                const results = await tester.test();
+                
+                // 显示结果
+                document.getElementById('latency').textContent = results.averageLatency.toFixed(2);
+                document.getElementById('jitter').textContent = results.averageJitter.toFixed(2);
+                document.getElementById('range').textContent = `${results.minLatency.toFixed(2)}-${results.maxLatency.toFixed(2)}`;
+                document.getElementById('count').textContent = results.latencies.length;
+                
+                resultDiv.classList.add('show');
+            } catch (error) {
+                alert('测试失败: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '重新测试';
+            }
+        });
+    </script>
+</body>
+</html>
