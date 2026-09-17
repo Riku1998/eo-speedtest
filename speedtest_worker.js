@@ -46,8 +46,8 @@ var settings = {
 	time_dlGraceTime: 1.5, //time to wait in seconds before actually measuring dl speed (wait for TCP window to increase)
 	count_ping: 10, // number of pings to perform in ping test
 	url_dl: "assets/garbage.bin", // path to a large static file, used for download test. must be relative to this js file
-	url_ul: "backend/empty.php", // path to an empty file, used for upload test. must be relative to this js file
-	url_ping: "backend/empty.php", // path to an empty file, used for ping test. must be relative to this js file
+	url_ul: "empty.txt", // path to an empty file, used for upload test. must be relative to this js file
+	url_ping: "empty.txt", // path to an empty file, used for ping test. must be relative to this js file
 	url_getIp: "backend/getIP.php", // path to getIP.php relative to this js file, or a similar thing that outputs the client's ip
 	getIp_ispInfo: true, //if set to true, the server will include ISP info with the IP address
 	getIp_ispInfo_distance: "km", //km or mi=estimate distance from server in km/mi; set to false to disable distance estimation. getIp_ispInfo must be enabled in order for this to work
@@ -690,8 +690,10 @@ function pingTest(done) {
 				}
 			}
 		}.bind(this);
-		// send xhr
-		xhr[0].open("GET", settings.url_ping + url_sep(settings.url_ping) + (settings.mpot ? "cors=true&" : "") + "r=" + Math.random(), true); // random string to prevent caching
+		xhr[0].open("GET", settings.url_ping, true);
+		try {
+			xhr[0].setRequestHeader("Cache-Control", "no-store");
+		} catch (e) {}
 		xhr[0].send();
 	}.bind(this);
 	doPing(); // start first ping
